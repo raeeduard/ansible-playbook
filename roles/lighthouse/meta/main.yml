@@ -1,0 +1,22 @@
+---
+galaxy_info:
+  author: "raeeduard"
+  description: "Ansible role for Lighthouse web performance monitoring tool"
+  license: "MIT"
+  min_ansible_version: "2.9"
+  platforms:
+    - name: "EL"  # Enterprise Linux (RHEL/CentOS)
+      versions:
+        - "7"
+        - "8"
+    - name: "Ubuntu"
+      versions:
+        - "20.04"
+        - "22.04"
+  galaxy_tags:
+    - monitoring
+    - performance
+    - nginx
+    - web
+
+dependencies: []

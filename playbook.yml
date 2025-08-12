@@ -1,0 +1,20 @@
+---
+- name: Install and configure ClickHouse
+  hosts: clickhouse
+  roles:
+    - clickhouse
+
+- name: Install and configure Vector
+  hosts: vector
+  roles:
+    - vector
+
+- name: Install and configure Lighthouse
+  hosts: lighthouse
+  roles:
+    - lighthouse
+  tasks:
+    - name: Ensure Nginx is running
+      ansible.builtin.service:
+        name: nginx
+        state: started
