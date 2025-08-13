@@ -1,20 +1,102 @@
 ---
+- name: Deploy Monitoring Stack
+  hosts: all
+  vars_files:
+    - vars/common.yml  # Общие переменные
+  pre_tasks:
+    - name: Update package cache
+      ansible.builtin.apt:
+        update_cache: yes
+      when: ansible_os_family == 'Debian'
+
 - name: Install and configure ClickHouse
   hosts: clickhouse
   roles:
-    - clickhouse
+    - role: clickhouse
+      vars:
+        clickhouse_users:
+          - name: "monitoring"
+            password: "{{ clickhouse_monitoring_password }}"
+  tasks:
+    - name: Verify ClickHouse connection
+      ansible.builtin.command: "clickhouse-client --user monitoring --password {{ clickhouse_monitoring_password }} -q 'SHOW DATABASES'"
+      register: ch_connect
+      changed_when: false
+      failed_when: ch_connect.rc != 0
 
-- name: Install and configure Vector
+- name: Deploy Vector Agents
   hosts: vector
   roles:
-    - vector
+    - role: vector
+      vars:
+        vector_sinks:
+          - type: clickhouse
+            host: "{{ hostvars[groups['clickhouse'][0]].ansible_host }}"
+            port: 8123
+            database: "logs"
+  handlers:
+    - name: Restart Vector
+      ansible.builtin.service:
+        name: vector
+        state: restarted
 
 - name: Install and configure Lighthouse
   hosts: lighthouse
+  vars_files:
+    - vars/lighthouse.yml
+  pre_tasks:
+    - name: Install prerequisites
+      ansible.builtin.apt:
+        name: ["git", "curl", "unzip"]
+        state: present
+      when: ansible_os_family == 'Debian'
+  
   roles:
-    - lighthouse
+    - role: geerlingguy.nodejs  # Роль из Ansible Galaxy
+      vars:
+        nodejs_version: "14.x"
+    
+    - role: lighthouse
+      vars:
+        lighthouse_version: "9.6.0"
+        lighthouse_nginx_host: "0.0.0.0"
+        lighthouse_nginx_port: 8080
+  
   tasks:
     - name: Ensure Nginx is running
       ansible.builtin.service:
         name: nginx
         state: started
+      notify: Reload Nginx configuration
+    
+    - name: Add Lighthouse cron job
+      ansible.builtin.cron:
+        name: "Run Lighthouse audits"
+        minute: "0"
+        hour: "*/6"
+        job: "/usr/local/bin/lighthouse {{ lighthouse_audit_url }} --output=json --output-path=/var/reports/lighthouse-report-$(date +\\%Y\\%m\\%d-\\%H\\%M).json"
+    
+  handlers:
+    - name: Reload Nginx configuration
+      ansible.builtin.service:
+        name: nginx
+        state: reloaded
+
+- name: Verify Stack Connectivity
+  hosts: localhost
+  tasks:
+    - name: Check Vector → ClickHouse connection
+      ansible.builtin.wait_for:
+        host: "{{ hostvars[groups['clickhouse'][0]].ansible_host }}"
+        port: 8123
+        timeout: 30
+      delegate_to: "{{ groups['vector'][0] }}"
+    
+    - name: Check Lighthouse accessibility
+      ansible.builtin.uri:
+        url: "http://{{ hostvars[groups['lighthouse'][0]].ansible_host }}:8080"
+        return_content: yes
+      register: lighthouse_check
+      until: lighthouse_check.status == 200
+      retries: 5
+      delay: 10

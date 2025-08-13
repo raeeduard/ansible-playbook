@@ -1,15 +1,30 @@
 ---
-- src: https://github.com/AlexeySetevoi/ansible-clickhouse.git
-  scm: git
-  version: "1.13"
-  name: clickhouse
+roles:
+  # Официальные роли из Ansible Galaxy
+  - name: geerlingguy.nodejs
+    version: "5.0.0"
+    src: geerlingguy.nodejs
 
-- src: https://github.com/raeeduard/vector-role.git
-  scm: git
-  version: "1.0.0"
-  name: vector
+  # ClickHouse роль
+  - name: clickhouse
+    src: https://github.com/AlexeySetevoi/ansible-clickhouse.git
+    scm: git
+    version: "1.13"
 
-- src: https://github.com/raeeduard/lighthouse-role.git
-  scm: git
-  version: "1.0.3"
-  name: lighthouse
+  # Кастомные роли
+  - name: vector
+    src: https://github.com/raeeduard/vector-role.git
+    scm: git
+    version: "1.0.0" # Обновленная версия
+
+  - name: lighthouse
+    src: https://github.com/raeeduard/lighthouse-role.git
+    scm: git
+    version: "1.0.3" #Обновленная версия с зависимостями
+    dependencies:
+      - role: geerlingguy.nodejs
+        version: "5.0.0"
+
+collections:
+  - name: community.general
+    version: "5.8.0"
