@@ -1,6 +1,47 @@
 ---
-<<<<<<< HEAD
-# tasks file for lighthouse-role
-=======
-# tasks file for vector-role
->>>>>>> 10896d7247e113189f1d314bd5330c2aca704b7a
+- name: Install Chrome dependencies
+  become: true
+  ansible.builtin.apt:
+    name: ["gdebi-core", "libappindicator1", "fonts-liberation"]
+    state: present
+  when: ansible_os_family == 'Debian'
+
+- name: Download Chrome
+  ansible.builtin.get_url:
+    url: "https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb"
+    dest: "/tmp/chrome.deb"
+
+- name: Install Chrome
+  become: true
+  ansible.builtin.command: "gdebi -n /tmp/chrome.deb"
+  args:
+    creates: "/usr/bin/google-chrome"
+
+- name: Install Lighthouse globally
+  become: true
+  ansible.builtin.npm:
+    name: lighthouse
+    global: yes
+    version: "{{ lighthouse_version }}"
+
+- name: Create report directory
+  become: true
+  ansible.builtin.file:
+    path: "/var/reports/lighthouse"
+    state: directory
+    mode: 0755
+
+- name: Deploy Nginx config
+  become: true
+  ansible.builtin.template:
+    src: "lighthouse.conf.j2"
+    dest: "/etc/nginx/sites-available/lighthouse.conf"
+  notify: restart nginx
+
+- name: Enable Nginx site
+  become: true
+  ansible.builtin.file:
+    src: "/etc/nginx/sites-available/lighthouse.conf"
+    dest: "/etc/nginx/sites-enabled/lighthouse.conf"
+    state: link
+  notify: restart nginx

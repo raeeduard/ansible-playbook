@@ -1,0 +1,17 @@
+sources:
+  {% for source in vector_sources %}
+  {{ source.type }}_{{ loop.index }}:
+    type: "{{ source.type }}"
+    {% for key, value in source.items() if key != 'type' %}
+    {{ key }}: {{ value | to_json }}
+    {% endfor %}
+  {% endfor %}
+
+sinks:
+  {% for sink in vector_sinks %}
+  {{ sink.type }}_{{ loop.index }}:
+    type: "{{ sink.type }}"
+    {% for key, value in sink.items() if key != 'type' %}
+    {{ key }}: {{ value | to_json }}
+    {% endfor %}
+  {% endfor %}
